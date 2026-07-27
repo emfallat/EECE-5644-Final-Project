@@ -1,0 +1,13 @@
+# Dataset files (>100MB)
+FallAllD/
+FallAllD.h5
+FallAllD__zip.zip
+
+# Virtual environment
+.venv_meckd/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
