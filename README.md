@@ -28,12 +28,12 @@ alone is the most informative modality (F1 0.957); the barometer is essentially 
 |---|---|
 | `Iteration_FallDetection_ML.ipynb` | **Main deliverable** - full pipeline (6 models) + report/discussion (builds the data itself) |
 | `Iteration4_Report.docx` | **Submission report** (Word) generated from the notebook results |
-| `FallAllD.h5` | Consolidated dataframe (6,605 recordings; Acc/Gyr/Mag/Bar + labels) |
 | `features.csv` | 84 engineered statistical features per recording |
 | `figures/` | Generated plots (EDA, confusion matrices, ROC, importance, ablations) |
 | `results/` | Metric tables (CSV) for every experiment |
-| `FallAllD__zip.zip` | Raw dataset (not tracked if large) |
 | `MECKD/` | Cloned reference repo (published baseline - next iteration) |
+| `FallAllD.h5` | Consolidated dataframe (gitignored - rebuilt by notebook if missing) |
+| `FallAllD__zip.zip` | Raw dataset archive (gitignored - too large for GitHub) |
 
 ## Environment / how to run
 ```bash
@@ -47,7 +47,7 @@ jupyter notebook Iteration_FallDetection_ML.ipynb
 The notebook rebuilds `FallAllD.h5` / `features.csv` automatically if they are missing.
 
 ## Research questions (answered in the notebook)
-1. Which model classifies falls vs. ADLs best? → **MLP** (F1 0.917, AUC 0.983).
+1. Which model classifies falls vs. ADLs best? → **XGBoost** (F1 0.952 tuned, AUC 0.993).
 2. Most useful sensing modality? → **Accelerometer** (F1 0.957); barometer useless.
 3. Feature-selection impact? → Helps both linear and non-linear models.
 4. Does device placement help? → Small consistent lift; all 3 positions classify well.
