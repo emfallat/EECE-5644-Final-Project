@@ -4,21 +4,13 @@ Binary classification of **falls vs. activities of daily living (ADL)** from wea
 inertial sensors (FallAllD dataset: 15 subjects, 3 body positions, 6,605 recordings).
 Team: Elizabeth Fallat, Darren Easler, Majd Khalaf.
 
-## ML iteration deliverable
-Everything for this iteration is in one notebook, **all models in PyTorch**:
-
-### `Iteration_FallDetection_ML.ipynb`
+### `FallDetection_ML.ipynb`
 Preprocessing → feature engineering → 6 models → tuning → evaluation → feature
 importance → research-question ablations → discussion. Models: Logistic Regression,
 MLP, 1D-CNN, and LSTM in PyTorch, plus Random Forest and XGBoost (tree ensembles on
-~30 simple features). Structured to map onto the Iteration 4 task list (Parts 1 to 7).
+~30 engineered features). Structured to map onto the Iteration 4 task list (Parts 1 to 7).
 
-### `Iteration4_Report.docx`
-The submission report: algorithm justification, train/test process, preprocessing,
-tuning results, metrics, all required visualizations, discussion, and research-question
-answers.
-
-**Headline result (held-out test subjects):** XGBoost on ~30 accelerometer-focused
+**result:** XGBoost on ~30 accelerometer-focused
 features - accuracy 0.961, recall 0.962, F1 0.941 (0.952 tuned), ROC-AUC 0.993; Random
 Forest close behind (F1 0.939). Both tree ensembles beat the neural models. Accelerometer
 alone is the most informative modality (F1 0.957); the barometer is essentially uninformative.
@@ -26,14 +18,15 @@ alone is the most informative modality (F1 0.957); the barometer is essentially 
 ## Repo layout
 | File | Purpose |
 |---|---|
-| `Iteration_FallDetection_ML.ipynb` | **Main deliverable** - full pipeline (6 models) + report/discussion (builds the data itself) |
-| `Iteration4_Report.docx` | **Submission report** (Word) generated from the notebook results |
+| `Iteration_FallDetection_ML.ipynb` | **Main deliverable** — full pipeline (6 models) + discussion |
+| `Iteration_2_Proposal.pdf` | Earlier project proposal |
 | `features.csv` | 84 engineered statistical features per recording |
-| `figures/` | Generated plots (EDA, confusion matrices, ROC, importance, ablations) |
-| `results/` | Metric tables (CSV) for every experiment |
-| `MECKD/` | Cloned reference repo (published baseline - next iteration) |
-| `FallAllD.h5` | Consolidated dataframe (gitignored - rebuilt by notebook if missing) |
-| `FallAllD__zip.zip` | Raw dataset archive (gitignored - too large for GitHub) |
+| `ActivityID2Str.m` | MATLAB helper — converts activity ID to text description |
+| `Description.txt` | Notes on FallAllD dataset helper scripts |
+| `MECKD/` | Cloned reference repo (published baseline — next iteration) |
+| `FallAllD.h5` | Consolidated dataframe — gitignored, rebuilt by notebook if missing |
+| `FallAllD__zip.zip` | Raw dataset archive — gitignored, too large for GitHub |
+| `FallAllD/` | Raw `.dat` files — gitignored, too large for GitHub |
 
 ## Environment / how to run
 ```bash
@@ -52,8 +45,3 @@ The notebook rebuilds `FallAllD.h5` / `features.csv` automatically if they are m
 3. Feature-selection impact? → Helps both linear and non-linear models.
 4. Does device placement help? → Small consistent lift; all 3 positions classify well.
 5. Are the models sufficient? → Strong baseline (recall 0.93 on unseen subjects), with caveats.
-
-## Next iteration (professor's brief)
-Reproduce the **MECKD** IEEE Sensors 2024 baseline (ResNet/CNN/MobileNet + knowledge
-distillation) and compare classical vs. deep models at **5 lead times** (predicting a
-fall before impact). Scaffolding (`MECKD/`, environment, data pipeline) is already in place.
