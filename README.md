@@ -1,13 +1,17 @@
 # EECE 5644 Final Project
 
+Binary classification of **falls vs. activities of daily living (ADL)** from wearable inertial sensors (FallAllD dataset: 15 subjects, 3 body positions, 6,605 recordings).
+
+Team: Elizabeth Fallat, Darren Easler, Majd Khalaf.
+
 ## What this project does
-This repository builds a fall detection classifier using the FallAllD dataset. This dataset is a collection of wearable sensor recordings capturing simulated falls and everyday activities (ADLs) across 15 subjects wearing accelerometer/gyroscope/magnetometer/barometer devices at the waist, wrist, and neck. This code converts thousands of raw sensor files into a single structured dataset, engineers statistical features per trial, and prepares train/validation/test splits for training a model that predicts whether a given recording is a fall or a normal activity.
+This repository builds a fall detection classifier using the FallAllD dataset. This dataset is a collection of wearable sensor recordings capturing simulated falls and everyday activities (ADLs) across 15 subjects wearing accelerometer/gyroscope/magnetometer/barometer devices at the waist, wrist, and neck. This code converts thousands of raw sensor files into a single structured dataset, engineers statistical features per trial, and prepares train/validation/test splits for training a model that predicts whether a given recording is a fall or a normal activity. It then trains and tunes five classifiers (Logistic Regression, SVM, Random Forest, XGBoost, and MLP) on those features, evaluates and compares their performance on held-out subjects, and analyzes which sensors, features, and device placements matter most for accurate fall detection.
 
 ## Repository contents
 | File | Description |
 |---|---|
 | `convert_to_pkl.ipynb` | Parses all raw `.dat` sensor files, groups them by recording, and consolidates everything into a single `FallAllD.pkl` file |
-| `detecting_activity.ipynb` | Loads `FallAllD.pkl`, cleans/validates the data, engineers features, and builds train/val/test splits for modeling |
+| `detecting_activity.ipynb` | Loads `FallAllD.pkl`, cleans/validates the data, engineers features, and builds train/val/test splits for modeling. Also includes hyperparameter tuning, evaluation, feature importance, and research-question analysis. The evaluated models are Logistic Regression, SVM, Random Forest, XGBoost, and MLP, all trained on the same 54 selected engineered features (mean/median/std/max/min/RMS per sensor axis, after variance and correlation-based feature selection from an initial 69). |
 | `ActivityID2Str.m` | Original MATLAB reference script (provided with the dataset) mapping each numeric ActivityID to its activity description |
 | `FallAllD.pkl` | Consolidated dataset (one row per recording); available via Google Drive since it exceeds GitHub's file size limits (see step 2 below) |
 | `requirements.txt` | Python library versions needed to reproduce this work |
@@ -36,4 +40,14 @@ Raw filenames follow the pattern `S<SubjectID>_D<Device>_A<ActivityID>_T<TrialNo
    pip install -r requirements.txt
    ```
 4. Open `detecting_activity.ipynb` in Jupyter or VS Code. It loads `FallAllD.pkl`, checks for missing/invalid sensor values, encodes the fall/ADL target and device position, engineers per-trial statistical features (mean, median, std, max, min, RMS per sensor axis), and builds subject-wise train/validation/test splits (so no subject appears in more than one split).
-5. Run all cells from top to bottom (**Restart Kernel + Run All**). The final cells output the cleaned, feature-engineered `X_train`/`X_val`/`X_test` matrices and corresponding labels, ready for model training.
+5. Run all cells from top to bottom (**Restart Kernel + Run All**). Beyond the cleaned, feature-engineered `X_train`/`X_val`/`X_test` matrices, the notebook trains and hyperparameter-tunes all 5 models (Logistic Regression, SVM, Random Forest, XGBoost, MLP), evaluates them on the held-out test subjects (accuracy, precision, recall, F1, ROC-AUC), produces the full set of visualizations (confusion matrices, ROC and Precision-Recall curves, feature importance, correlation heatmap, learning curve, feature distributions) and answers our research-questions.
+
+## Research questions 
+1. How do different supervised machine learning algorithms perform in the classification of falls
+vs. ADLs from wearable sensor features? Which has the highest classification accuracy?
+2. Which sensing methods give the most beneficial prediction information for accurate
+classification?
+3. How impactful is feature selection across linear and non-linear based classification models?
+4. Does device placement information improve fall detection classification accuracy?
+5. Are any ML models sufficient to predict fall classification based on only the dataset used in
+this project?
