@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FallAllD fall detection demo</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --plane:          #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --axis:           #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --series-2:       #eb6834;
+    --series-3:       #1baf7a;
+    --good:           #0ca30c;
+    --critical:       #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --plane:          #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --axis:           #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-2:       #d95926;
+      --series-3:       #199e70;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --plane:          #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --axis:           #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --series-3:       #199e70;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--plane);
+    color: var(--text-primary);
+  }
+  .viz-root { background: var(--plane); min-height: 100vh; padding: 28px 20px 56px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  header.page { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 22px; }
+  header.page h1 { font-size: 20px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header.page p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5; max-width: 68ch; }
+  .spacer { flex: 1; }
+
+  button {
+    font: inherit; font-size: 13px; cursor: pointer;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px;
+  }
+  button:hover { background: var(--grid); }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 16px;
+  }
+  .card > h2 {
+    font-size: 13px; font-weight: 700; margin: 0 0 2px;
+    letter-spacing: 0.01em;
+  }
+  .card > .sub { font-size: 12px; color: var(--text-muted); margin: 0 0 14px; }
+
+  /* one row of controls above the charts */
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .counter { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; min-width: 12ch; }
+  .hint { font-size: 12px; color: var(--text-muted); }
+
+  .strip { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+  .chip {
+    width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-secondary);
+    font-size: 10px; font-weight: 700; line-height: 1;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .chip[data-ok="0"] { border-color: var(--critical); color: var(--critical); }
+  .chip[aria-current="true"] { outline: 2px solid var(--text-primary); outline-offset: 1px; }
+
+  .meta { display: flex; gap: 26px; flex-wrap: wrap; align-items: baseline; margin-bottom: 4px; }
+  .meta .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 3px; }
+  .meta .v { font-size: 15px; font-weight: 600; }
+  .truthpill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700; padding: 4px 11px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--plane);
+  }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 6px; padding: 0; list-style: none; }
+  .legend li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  .axisline { stroke: var(--axis); stroke-width: 1; }
+  .tick { fill: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .axlabel { fill: var(--text-muted); font-size: 11px; }
+  .trace { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .peak { stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .peaktext { fill: var(--text-muted); font-size: 10px; }
+  .endlabel { font-size: 11px; font-weight: 600; }
+  .crosshair { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 3 3; }
+  .dot { stroke: var(--surface-1); stroke-width: 2; }
+
+  .tip {
+    position: fixed; pointer-events: none; z-index: 20; opacity: 0;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 10px; font-size: 12px; line-height: 1.45;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.13); font-variant-numeric: tabular-nums;
+    transition: opacity 90ms linear;
+  }
+  .tip b { font-weight: 700; }
+  .tip .r { display: flex; align-items: center; gap: 6px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: right; padding: 7px 9px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+  th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.best { font-weight: 700; }
+
+  footer.note { font-size: 12px; color: var(--text-muted); line-height: 1.6; max-width: 76ch; }
+  footer.note code { font-size: 11.5px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="page">
+    <div>
+      <h1>Fall detection: what the models see</h1>
+      <p id="intro"></p>
+    </div>
+    <div class="spacer"></div>
+    <button id="theme" type="button">Dark mode</button>
+  </header>
+
+  <div class="controls">
+    <button id="prev" type="button">&larr; Previous</button>
+    <button id="next" type="button">Next &rarr;</button>
+    <span class="counter" id="counter"></span>
+    <span class="hint">Arrow keys step through windows once a button is focused</span>
+    <span class="spacer"></span>
+    <button id="onlyerr" type="button">Show only mistakes</button>
+  </div>
+
+  <div class="card">
+    <h2>Jump to a window</h2>
+    <p class="sub">F is a labelled fall, A is a daily activity. A red chip is a window the
+      best model gets wrong.</p>
+    <div class="strip" id="strip" role="tablist" aria-label="Test windows"></div>
+  </div>
+
+  <div class="card">
+    <div class="meta">
+      <div><span class="k">Subject</span><span class="v" id="m-subj"></span></div>
+      <div><span class="k">Sensor position</span><span class="v" id="m-dev"></span></div>
+      <div><span class="k">Ground truth</span><span class="v"><span class="truthpill" id="m-truth"></span></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Acceleration magnitude</h2>
+    <p class="sub" id="magsub"></p>
+    <svg id="chart-mag" viewBox="0 0 760 190" role="img" aria-labelledby="mag-desc"></svg>
+    <p class="vh" id="mag-desc"></p>
+  </div>
+
+  <div class="card">
+    <h2>Acceleration by axis</h2>
+    <p class="sub">The same window split into its three components.</p>
+    <ul class="legend" id="legend-ax"></ul>
+    <svg id="chart-ax" viewBox="0 0 760 210" role="img" aria-labelledby="ax-desc"></svg>
+    <p class="vh" id="ax-desc"></p>
+  </div>
+
+  <div class="card">
+    <h2>What each model says about this window</h2>
+    <p class="sub">Bar length is the predicted probability of a fall. The tick marks the 0.5
+      decision threshold. Green check means the model agrees with the ground truth, red cross
+      means it does not.</p>
+    <svg id="chart-prob" viewBox="0 0 760 250" role="img" aria-labelledby="prob-desc"></svg>
+    <p class="vh" id="prob-desc"></p>
+  </div>
+
+  <div class="card">
+    <h2>Test-set performance of every model</h2>
+    <p class="sub" id="metricsub"></p>
+    <table id="metrics">
+      <thead><tr><th>Model</th><th>F1</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>ROC AUC</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <footer class="note" id="foot"></footer>
+</div>
+</div>
+
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script id="payload" type="application/json">__PAYLOAD__</script>
+<script>
+(function () {
+  "use strict";
+  const D = JSON.parse(document.getElementById("payload").textContent);
+  const S = D.samples;
+  const MODELS = D.models;
+  const BEST = D.best;
+  const FS = D.fs, W = D.window;
+  const SEC = W / FS;
+
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in (a || {})) e.setAttribute(k, a[k]); return e; };
+  const css = v => getComputedStyle(document.querySelector(".viz-root")).getPropertyValue(v).trim();
+  const AXCOL = ["--series-1", "--series-2", "--series-3"];
+  const AXNAME = ["x", "y", "z"];
+  const fmt = (v, n) => v.toFixed(n === undefined ? 2 : n);
+  const labelOf = t => (t === 1 ? "Fall" : "Daily activity");
+  const shortOf = t => (t === 1 ? "FALL" : "ADL");
+
+  const mag = s => s.ax.map((v, i) => Math.hypot(v, s.ay[i], s.az[i]));
+  const predOf = (s, m) => (s.p[m] >= 0.5 ? 1 : 0);
+  const okOf = (s, m) => (predOf(s, m) === s.truth);
+
+  let idx = 0, onlyErr = false;
+
+  /* ---------- tooltip ---------- */
+  const tip = document.getElementById("tip");
+  function showTip(ev, html) {
+    tip.innerHTML = html;
+    tip.style.opacity = "1";
+    const r = tip.getBoundingClientRect();
+    let x = ev.clientX + 14, y = ev.clientY - r.height - 10;
+    if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+    if (y < 8) y = ev.clientY + 16;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+  const hideTip = () => { tip.style.opacity = "0"; };
+
+  /* ---------- a line panel ---------- */
+  function linePanel(svg, series, opts) {
+    svg.textContent = "";
+    const w = 760, h = opts.h, L = 46, R = opts.padRight, T = 10, B = 30;
+    const iw = w - L - R, ih = h - T - B;
+
+    let lo = Infinity, hi = -Infinity;
+    series.forEach(s => s.v.forEach(v => { if (v < lo) lo = v; if (v > hi) hi = v; }));
+    const pad = (hi - lo) * 0.10 || 0.5;
+    lo -= pad; hi += pad;
+    /* a magnitude cannot be negative, so the baseline sits at zero rather than below it */
+    if (opts.fromZero) lo = 0;
+
+    const X = i => L + (i / (W - 1)) * iw;
+    const Y = v => T + ih - ((v - lo) / (hi - lo)) * ih;
+
+    /* gridlines + y ticks: 4 steps, recessive */
+    const nY = 4;
+    for (let k = 0; k <= nY; k++) {
+      const v = lo + (k / nY) * (hi - lo), y = Y(v);
+      svg.appendChild(el("line", { x1: L, x2: L + iw, y1: y, y2: y, class: "gridline" }));
+      const t = el("text", { x: L - 8, y: y + 3.5, class: "tick", "text-anchor": "end" });
+      t.textContent = fmt(v, 1);
+      svg.appendChild(t);
+    }
+    /* x axis in seconds */
+    svg.appendChild(el("line", { x1: L, x2: L + iw, y1: T + ih, y2: T + ih, class: "axisline" }));
+    for (let k = 0; k <= 4; k++) {
+      const i = Math.round((k / 4) * (W - 1)), x = X(i);
+      const t = el("text", { x: x, y: T + ih + 15, class: "tick", "text-anchor": "middle" });
+      t.textContent = fmt((i / FS), 2) + "s";
+      svg.appendChild(t);
+    }
+    const xl = el("text", { x: L + iw / 2, y: h - 2, class: "axlabel", "text-anchor": "middle" });
+    xl.textContent = "time within the window (seconds, " + FS + " Hz)";
+    svg.appendChild(xl);
+    const yl = el("text", { x: 11, y: T + ih / 2, class: "axlabel", "text-anchor": "middle",
+                            transform: "rotate(-90 11 " + (T + ih / 2) + ")" });
+    yl.textContent = opts.yLabel;
+    svg.appendChild(yl);
+
+    /* impact peak marker */
+    if (opts.peak !== undefined) {
+      const px = X(opts.peak);
+      svg.appendChild(el("line", { x1: px, x2: px, y1: T, y2: T + ih, class: "peak" }));
+      const pt = el("text", { x: px + 5, y: T + 11, class: "peaktext" });
+      pt.textContent = "impact peak";
+      svg.appendChild(pt);
+    }
+
+    /* traces */
+    series.forEach(s => {
+      const d = s.v.map((v, i) => (i ? "L" : "M") + fmt(X(i), 1) + " " + fmt(Y(v), 1)).join(" ");
+      svg.appendChild(el("path", { d: d, class: "trace", stroke: css(s.col) }));
+    });
+
+    /* Direct end labels. Two traces can finish at nearly the same value, so push the
+       labels apart before drawing rather than letting them sit on top of each other. */
+    if (opts.endLabels) {
+      const GAP = 12;
+      const slots = series.map((s, k) => ({ k: k, y: Y(s.v[W - 1]) }))
+                          .sort((a, b) => a.y - b.y);
+      for (let i = 1; i < slots.length; i++) {
+        if (slots[i].y - slots[i - 1].y < GAP) slots[i].y = slots[i - 1].y + GAP;
+      }
+      const over = slots[slots.length - 1].y - (T + ih);
+      if (over > 0) slots.forEach(s => { s.y -= over; });
+      slots.forEach(sl => {
+        const s = series[sl.k];
+        const t = el("text", { x: L + iw + 7, y: sl.y + 4, class: "endlabel", fill: css(s.col) });
+        t.textContent = s.name;
+        svg.appendChild(t);
+      });
+    }
+
+    /* crosshair + tooltip layer */
+    const cross = el("line", { x1: 0, x2: 0, y1: T, y2: T + ih, class: "crosshair", opacity: 0 });
+    svg.appendChild(cross);
+    const dots = series.map(s => {
+      const c = el("circle", { r: 4.5, fill: css(s.col), class: "dot", opacity: 0 });
+      svg.appendChild(c); return c;
+    });
+    const hit = el("rect", { x: L, y: T, width: iw, height: ih, fill: "transparent" });
+    svg.appendChild(hit);
+
+    hit.addEventListener("mousemove", ev => {
+      const b = svg.getBoundingClientRect();
+      const sx = (ev.clientX - b.left) * (w / b.width);
+      let i = Math.round(((sx - L) / iw) * (W - 1));
+      i = Math.max(0, Math.min(W - 1, i));
+      cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("opacity", 1);
+      series.forEach((s, k) => {
+        dots[k].setAttribute("cx", X(i)); dots[k].setAttribute("cy", Y(s.v[i])); dots[k].setAttribute("opacity", 1);
+      });
+      let html = "<b>" + fmt(i / FS, 3) + " s</b>";
+      series.forEach(s => {
+        html += '<div class="r"><span class="swatch" style="background:' + css(s.col) + '"></span>' +
+                s.name + " " + fmt(s.v[i], 3) + " g</div>";
+      });
+      showTip(ev, html);
+    });
+    hit.addEventListener("mouseleave", () => {
+      cross.setAttribute("opacity", 0);
+      dots.forEach(d => d.setAttribute("opacity", 0));
+      hideTip();
+    });
+  }
+
+  /* ---------- probability bars ---------- */
+  function probPanel(svg, s) {
+    svg.textContent = "";
+    const w = 760, L = 108, R = 150, T = 24, rowH = 30, barH = 13;
+    const h = T + MODELS.length * rowH + 16;
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    const iw = w - L - R;
+    const X = p => L + p * iw;
+
+    /* scale ticks along the top, recessive */
+    for (let k = 0; k <= 4; k++) {
+      const p = k / 4, x = X(p);
+      svg.appendChild(el("line", { x1: x, x2: x, y1: T - 4, y2: T + MODELS.length * rowH - 10, class: "gridline" }));
+      const t = el("text", { x: x, y: T - 9, class: "tick", "text-anchor": "middle" });
+      t.textContent = fmt(p, 2);
+      svg.appendChild(t);
+    }
+    const xl = el("text", { x: L + iw / 2, y: h - 1, class: "axlabel", "text-anchor": "middle" });
+    xl.textContent = "predicted probability of a fall";
+    svg.appendChild(xl);
+
+    MODELS.forEach((m, r) => {
+      const y = T + r * rowH, p = s.p[m], ok = okOf(s, m);
+      const col = ok ? css("--good") : css("--critical");
+
+      const nm = el("text", { x: L - 12, y: y + barH - 1, class: "tick", "text-anchor": "end" });
+      nm.setAttribute("fill", css("--text-secondary"));
+      nm.setAttribute("font-size", "12");
+      nm.textContent = m + (m === BEST ? " *" : "");
+      svg.appendChild(nm);
+
+      /* track, then the value bar with 4px rounded data-end */
+      svg.appendChild(el("rect", { x: L, y: y, width: iw, height: barH, rx: 4, fill: css("--grid"), opacity: 0.55 }));
+      const bw = Math.max(2, p * iw);
+      svg.appendChild(el("rect", { x: L, y: y, width: bw, height: barH, rx: 4, fill: col }));
+
+      /* 0.5 threshold, with a 2px surface gap so it never touches the fill */
+      const tx = X(0.5);
+      svg.appendChild(el("line", { x1: tx, x2: tx, y1: y - 4, y2: y + barH + 4,
+                                   stroke: css("--surface-1"), "stroke-width": 5 }));
+      svg.appendChild(el("line", { x1: tx, x2: tx, y1: y - 3, y2: y + barH + 3,
+                                   stroke: css("--text-primary"), "stroke-width": 1.5 }));
+
+      const vt = el("text", { x: L + iw + 10, y: y + barH - 1, class: "tick" });
+      vt.setAttribute("fill", css("--text-primary"));
+      vt.setAttribute("font-size", "12");
+      vt.setAttribute("font-weight", "600");
+      vt.textContent = fmt(p, 3);
+      svg.appendChild(vt);
+
+      /* icon + label, so correctness never rides on colour alone */
+      const st = el("text", { x: L + iw + 52, y: y + barH - 1 });
+      st.setAttribute("fill", col);
+      st.setAttribute("font-size", "12");
+      st.setAttribute("font-weight", "700");
+      st.textContent = (ok ? "✓ " : "✗ ") + shortOf(predOf(s, m));
+      svg.appendChild(st);
+
+      const hit = el("rect", { x: L, y: y - 5, width: iw, height: barH + 10, fill: "transparent" });
+      svg.appendChild(hit);
+      hit.addEventListener("mousemove", ev => showTip(ev,
+        "<b>" + m + "</b><br>P(fall) = " + fmt(p, 4) +
+        "<br>predicts " + shortOf(predOf(s, m)) + ", truth is " + shortOf(s.truth) +
+        "<br>" + (ok ? "correct" : "wrong")));
+      hit.addEventListener("mouseleave", hideTip);
+    });
+  }
+
+  /* ---------- render one sample ---------- */
+  function render() {
+    const s = S[idx];
+    const m = mag(s);
+    const peak = m.indexOf(Math.max.apply(null, m));
+
+    document.getElementById("counter").textContent = "Window " + (idx + 1) + " of " + S.length;
+    document.getElementById("m-subj").textContent = "Subject " + s.subject;
+    document.getElementById("m-dev").textContent = s.device;
+
+    const tp = document.getElementById("m-truth");
+    tp.textContent = labelOf(s.truth);
+    tp.style.color = s.truth === 1 ? css("--critical") : css("--text-primary");
+
+    document.getElementById("magsub").textContent =
+      "Vector magnitude of the accelerometer, in g. Falls show a free-fall dip followed by an " +
+      "impact spike; the window is centred on the largest peak.";
+
+    linePanel(document.getElementById("chart-mag"),
+      [{ name: "|acc|", v: m, col: "--series-1" }],
+      { h: 190, padRight: 22, yLabel: "|acc| (g)", fromZero: true, peak: peak, endLabels: false });
+
+    document.getElementById("mag-desc").textContent =
+      "Acceleration magnitude over " + fmt(SEC, 2) + " seconds, peaking at " + fmt(Math.max.apply(null, m), 2) + " g.";
+
+    linePanel(document.getElementById("chart-ax"),
+      [{ name: "x", v: s.ax, col: AXCOL[0] },
+       { name: "y", v: s.ay, col: AXCOL[1] },
+       { name: "z", v: s.az, col: AXCOL[2] }],
+      { h: 210, padRight: 34, yLabel: "acceleration (g)", peak: peak, endLabels: true });
+
+    document.getElementById("ax-desc").textContent = "Three accelerometer axes over the same window.";
+
+    probPanel(document.getElementById("chart-prob"), s);
+    document.getElementById("prob-desc").textContent =
+      MODELS.map(mm => mm + " predicts " + shortOf(predOf(s, mm)) + " at probability " + fmt(s.p[mm], 3)).join("; ") + ".";
+
+    document.querySelectorAll(".chip").forEach(c => {
+      c.setAttribute("aria-current", String(Number(c.dataset.i) === idx));
+    });
+    document.getElementById("prev").disabled = idx === 0;
+    document.getElementById("next").disabled = idx === S.length - 1;
+  }
+
+  /* ---------- static chrome ---------- */
+  function buildStrip() {
+    const strip = document.getElementById("strip");
+    strip.textContent = "";
+    S.forEach((s, i) => {
+      const ok = okOf(s, BEST);
+      if (onlyErr && ok) return;
+      const b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.dataset.i = i; b.dataset.ok = ok ? "1" : "0";
+      b.textContent = s.truth === 1 ? "F" : "A";
+      b.title = "Window " + (i + 1) + ": subject " + s.subject + ", " + s.device + ", truth " +
+                shortOf(s.truth) + ", " + BEST + " " + (ok ? "correct" : "wrong");
+      b.setAttribute("aria-label", b.title);
+      b.addEventListener("click", () => { idx = i; render(); });
+      strip.appendChild(b);
+    });
+  }
+
+  function buildLegend() {
+    const ul = document.getElementById("legend-ax");
+    ul.textContent = "";
+    AXNAME.forEach((n, i) => {
+      const li = document.createElement("li");
+      const sw = document.createElement("span");
+      sw.className = "swatch";
+      sw.style.background = css(AXCOL[i]);
+      li.appendChild(sw);
+      li.appendChild(document.createTextNode(n + " axis"));
+      ul.appendChild(li);
+    });
+  }
+
+  function buildMetrics() {
+    const tb = document.querySelector("#metrics tbody");
+    tb.textContent = "";
+    const order = MODELS.slice().sort((a, b) => D.metrics[b].f1 - D.metrics[a].f1);
+    order.forEach(m => {
+      const tr = document.createElement("tr");
+      const cells = [m, D.metrics[m].f1, D.metrics[m].accuracy, D.metrics[m].precision,
+                     D.metrics[m].recall, D.metrics[m].roc_auc];
+      cells.forEach((c, k) => {
+        const td = document.createElement("td");
+        td.textContent = k === 0 ? c : fmt(c, 3);
+        if (m === BEST) td.className = "best";
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    document.getElementById("metricsub").textContent =
+      "Measured on all " + D.n_test.toLocaleString() + " held-out windows from subjects " +
+      D.test_subjects.join(", ") + ", of which " + D.n_test_falls.toLocaleString() + " are falls. " +
+      BEST + " is the model marked with an asterisk above.";
+  }
+
+  function buildIntro() {
+    document.getElementById("intro").textContent =
+      "Every window below comes from the FallAllD test split: subjects " + D.test_subjects.join(", ") +
+      ", who appear in no training or validation data. " + S.length + " windows are shown here, " +
+      "deliberately including every mistake " + BEST + " makes among them. Each is " + W +
+      " accelerometer samples at " + FS + " Hz, about " + fmt(SEC, 2) +
+      " seconds, centred on the largest acceleration peak. Probabilities were computed by the " +
+      "notebook and baked into this page, so it needs no network and no Python.";
+    document.getElementById("foot").innerHTML =
+      "Generated from <code>FallDetection_ML.ipynb</code>. Predictions are precomputed, not run " +
+      "live in the browser. Ground truth is the FallAllD label for the trial the window was cut " +
+      "from. Colour never carries meaning on its own here: axes are also labelled at the line " +
+      "ends, and each model verdict pairs its colour with a check or cross and the predicted class.";
+  }
+
+  /* ---------- controls ---------- */
+  document.getElementById("prev").addEventListener("click", () => { if (idx > 0) { idx--; render(); } });
+  document.getElementById("next").addEventListener("click", () => { if (idx < S.length - 1) { idx++; render(); } });
+  /* Arrow keys step through windows, but only while focus is on one of the navigation
+     controls. Bound globally they would swallow arrow-key page scrolling, which on a page
+     this tall is the more important behaviour. */
+  const NAV = "#prev, #next, #onlyerr, .chip";
+  addEventListener("keydown", ev => {
+    const a = document.activeElement;
+    if (!a || typeof a.matches !== "function" || !a.matches(NAV)) return;
+    if (ev.key === "ArrowLeft" && idx > 0) { ev.preventDefault(); idx--; render(); }
+    else if (ev.key === "ArrowRight" && idx < S.length - 1) { ev.preventDefault(); idx++; render(); }
+  });
+
+  const errBtn = document.getElementById("onlyerr");
+  errBtn.addEventListener("click", () => {
+    onlyErr = !onlyErr;
+    errBtn.textContent = onlyErr ? "Show all windows" : "Show only mistakes";
+    buildStrip();
+    if (onlyErr && okOf(S[idx], BEST)) {
+      const first = S.findIndex(s => !okOf(s, BEST));
+      if (first >= 0) idx = first;
+    }
+    render();
+  });
+
+  const themeBtn = document.getElementById("theme");
+  function syncTheme() {
+    const dark = document.documentElement.dataset.theme === "dark";
+    themeBtn.textContent = dark ? "Light mode" : "Dark mode";
+  }
+  themeBtn.addEventListener("click", () => {
+    document.documentElement.dataset.theme =
+      document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    syncTheme();
+    render();          /* colours are read from CSS vars, so redraw */
+    buildLegend();
+  });
+
+  if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme = "dark";
+  syncTheme();
+  buildIntro();
+  buildLegend();
+  buildMetrics();
+  buildStrip();
+  render();
+})();
+</script>
+</body>
+</html>

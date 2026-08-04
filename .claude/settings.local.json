@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/opt/anaconda3/envs/MProject/bin/pip install *)"
+    ]
+  }
+}
